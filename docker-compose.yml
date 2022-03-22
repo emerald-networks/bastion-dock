@@ -1,0 +1,46 @@
+version: '3'
+
+services:
+  nginx:
+    image: nginx:alpine
+    env_file:
+      - .env.defauts
+      - .env
+    volumes:
+      - ./etc/nginx/templates:/etc/nginx/templates
+    ports:
+      - ${OPENVPN_HOST:-127.0.0.1}:${OPENVPN_PROXY_AUTO_CONFIGURATION_PORT:-8081}:80
+
+  client:
+    build:
+      context: images/openvpn
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    env_file:
+      - .env.defauts
+      - .env
+    volumes:
+      - ./config:/opt/openvpn
+    ports:
+      - ${OPENVPN_HOST:-127.0.0.1}:${OPENVPN_PROXY_HTTP_PORT:-8080}:${OPENVPN_PROXY_HTTP_PORT:-8080}
+      - ${OPENVPN_HOST:-127.0.0.1}:${OPENVPN_PROXY_SSH_PORT:-2222}:22
+
+  privoxy:
+    build:
+      context: images/privoxy
+    env_file:
+      - .env.defauts
+      - .env
+    volumes:
+      - ./etc/privoxy:/etc/privoxy:ro
+    network_mode: 'service:client'
+
+  ssh:
+    build:
+      context: images/ssh
+    volumes:
+      - ./etc/ssh:/etc/ssh
+      - ./root/.ssh:/root/.ssh
+    network_mode: 'service:client'
